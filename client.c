@@ -43,7 +43,7 @@ void cadastrar_filme(int sockfd) {
         scanf("%d", &identifier);
         sprintf(buf, "%d\n%s\n%s\n%d", identifier, name, genre, year);
         if (send(sockfd, buf, strlen(buf),0)==-1)
-        	perror("send");
+        	perror("cadastrar_filme resposta 1");
 }
 
 void editar_filme(int sockfd) {
@@ -56,7 +56,7 @@ void editar_filme(int sockfd) {
         scanf(" %[^\n]", genre);
         sprintf(buf,"%d\n%s", identifier, genre);
         if (send(sockfd,buf,strlen(buf),0)==-1)
-        	perror("send");
+        	perror("editar_filme resposta 1");
 }
 
 void deletar_filme(int sockfd) {
@@ -65,7 +65,7 @@ void deletar_filme(int sockfd) {
         scanf("%d", &identifier);
         identifier = htonl(identifier);
         if (send(sockfd,&identifier,4,0)==-1)
-        	perror("send");
+        	perror("deletar_filme resposta 1");
 }
 
 void filtrar_filme(int sockfd) {
@@ -79,24 +79,24 @@ void filtrar_filme(int sockfd) {
         scanf("%hd", &typefilter);
         typefilter = htons(typefilter);
         if (send(sockfd, &typefilter, 2, 0) == -1)
-        	perror("send:client");
+        	perror("filtrar_filme resposta 1");
         typefilter = ntohs(typefilter);
         if (typefilter == 2) {
         	char genre[MAXDATASIZE];
                 if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1,0)) == -1) {
-                	perror("recv");
+                	perror("filtrar_filme requisicao 1");
                         exit(1);
                 }
                 buf[numbytes] = '\0';
                 printf("%s", buf);
                 scanf(" %[^\n]", genre);
                 if (send(sockfd, genre, strlen(genre), 0) == -1)
-                	perror("send:client");
+                	perror("filtrar_filme resposta 2");
         }
 	else if (typefilter == 3) {
         	int identifier;
                 if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1,0))==-1) {
-                	perror("recv");
+                	perror("filtrar_filme requisicao 2");
                         exit(1);
                 }
                 buf[numbytes] = '\0';
@@ -104,16 +104,16 @@ void filtrar_filme(int sockfd) {
                 scanf("%d", &identifier);
                 identifier = htonl(identifier);
                 if (send(sockfd, &identifier, 4, 0)==-1)
-                	perror("send");
+                	perror("filtrar_filme resposta 3");
         }
 	if ((numbytes=recv(sockfd,&total_bytes,4,0))==-1) {
-		perror("recv");
+		perror("filtrar_filme requisicao 3");
 		exit(1);
 	}
 	total_bytes = ntohl(total_bytes);
         do {
         	if ((numbytes = recv(sockfd, movie, MAXDATASIZE-1,0)) == -1) {
-                	perror("recv");
+                	perror("filtrar_filme requisicao 4");
                         exit(1);
                 }
                 movie[numbytes] = '\0';
@@ -129,14 +129,14 @@ void listar_ids(int sockfd) {
 	int total_bytes;
 
 	if ((numbytes=recv(sockfd,&total_bytes,4,0))==-1) {
-                perror("recv");
+                perror("listar_ids requisicao 1");
                 exit(1);
         }
         total_bytes = ntohl(total_bytes);
 
         do {
         	if ((numbytes = recv(sockfd, movie, MAXDATASIZE-1,0)) == -1) {
-                	perror("recv");
+                	perror("listar_ids resposta 1");
                         exit(1);
                 }
                 movie[numbytes] = '\0';
@@ -197,7 +197,7 @@ int main(int argc, char*argv[]) {
 
 	/*Menu inicial*/
 	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		perror("recv");
+		perror("Menu inicial resposta");
 		exit(1);
 	}
 
@@ -208,13 +208,13 @@ int main(int argc, char*argv[]) {
 	while (scanf("%hd", &choice) && choice != 7) {
 		choice = htons(choice);
 		if (send(sockfd, &choice, 2, 0)==-1)
-			perror("client: send");
+			perror("escolha resposta");
 		choice = ntohs(choice);
 
 		/*Instrucoes*/
 		if (choice != 6) {	
 			if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1,0)) == -1) {
-				perror("recv");
+				perror("segunda instrucao requisicao");
 				exit(1);		
 			}
 			buf[numbytes] = '\0';

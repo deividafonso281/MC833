@@ -39,7 +39,7 @@ int filter(void *NotUsed, int responses, char ** columns, char ** column_names) 
 		strcat(movie,"\n");
         }
 	if (send(socket, movie,strlen(movie),0)==-1)
-        	perror("server: send");
+        	perror("filter");
 
         return 0;
 }
@@ -65,7 +65,7 @@ int show_ids(void *NotUsed, int responses, char ** columns, char ** column_names
         char movie[200];
         sprintf(movie, "%s %s\n", columns[0], columns[1]);
         if (send(socket, movie,strlen(movie),0)==-1)
-                perror("server: send");
+                perror("show_ids");
 
         return 0;
 }
@@ -80,9 +80,9 @@ void add_movie(int socket, sqlite3* db, int rc, char *zErrMsg) {
         char buffer[300];
         int numbytes;
         if (send(socket, "Por favor digite o nome do filme que deseja cadastrar\n", 54, 0) == -1)
-        	perror("send");
+        	perror("add_movie requisicao 1");
         if ((numbytes=recv(socket,buffer,299,0))==-1) {
-        	perror("recv");
+        	perror("add_movie resposta 1");
                 exit(1);
         }
         buffer[numbytes] = '\0';
@@ -107,9 +107,9 @@ void edit_movie(int socket, sqlite3* db, int rc, char *zErrMsg) {
         int numbytes;
         char buffer[300];
         if (send(socket, "Por favor digite o ideintificador do filme que deseja editar\n", 61, 0) == -1)
-        	perror("send");
+        	perror("edit_movie requisicao 1");
         if ((numbytes=recv(socket, buffer, 299, 0))==-1) {
-        	perror("recv");
+        	perror("edit_movie resposta 1");
                 exit(1);
         }
         buffer[numbytes] ='\0';
@@ -130,9 +130,9 @@ void delete_movie(int socket, sqlite3* db, int rc, char *zErrMsg) {
         char queryfilter[300];
         int numbytes;
         if (send(socket, "Por favor digite o identificador do filme que deseja deletar\n", 62, 0) == -1)
-        	perror("send");
+        	perror("delete_movie requisicao 1");
         if ((numbytes=recv(socket, &identifier, 4, 0))==-1) {
-        	perror("recv");
+        	perror("delete_movie resposta 1");
                 exit(1);
         }
         identifier = ntohl(identifier);
@@ -151,9 +151,9 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg) {
 	int total_bytes = 28;
 	void* addrs_total_bytes = (void*) &total_bytes;
         if (send(socket, "Por favor selecione um dos filtros abaixo:\n(1)Todos os filmes\n(2)Filtrar por genero\n(3)Filtrar por identificador\n", 113, 0) == -1)
-        	perror("send");
+        	perror("filte_movies requisicao 1");
         if ((numbytes=recv(socket, &typefilter, 2, 0))==-1) {
-        	perror("recv");
+        	perror("filter_movies resposta 1");
                 exit(1);
         }
         typefilter = ntohs(typefilter);
@@ -162,9 +162,9 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg) {
         else if (typefilter == 2) {
         	char genre[100];
                 if (send(socket, "Por favor selecione um genero para filtrar:\n",44,0)==-1)
-                	perror("send");
+                	perror("filter_movies requisicao 2");
                 if ((numbytes=recv(socket, genre,99,0))==-1) {
-                	perror("recv");
+                	perror("filter_movies resposta 2");
                         exit(1);
                 }
                 genre[numbytes] = '\0';
@@ -173,9 +173,9 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg) {
 	else if (typefilter == 3) {
         	int identifier;
                 if (send(socket, "Por favor selecione um identificador para filtrar:\n", 51, 0)==-1)
-                	perror("send");
+                	perror("filter_movies requisicao 3");
                 if ((numbytes=recv(socket,&identifier,4,0))==-1) {
-                	perror("receive");
+                	perror("filter_movies requisicao 3");
                         exit(1);
                 }
                 identifier = ntohl(identifier);
@@ -187,7 +187,7 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg) {
 	rc = sqlite3_exec(db, countfilter, count_bytes, addrs_total_bytes, &zErrMsg);
 	total_bytes = htonl(total_bytes);
 	if (send(socket, &total_bytes, 4, 0)==-1)
-		perror("send");
+		perror("filter_movies tamanho");
 
         /*sqlite3*/
         void* param = &socket;
@@ -209,7 +209,7 @@ void show_all_ids(int socket, sqlite3* db, int rc, char *zErrMsg) {
 	rc = sqlite3_exec(db, countfilter, count_bytes, addrs_total_bytes, &zErrMsg);
         total_bytes = htonl(total_bytes);
         if (send(socket, &total_bytes, 4, 0)==-1)
-                perror("send");
+                perror("show_all_ids tamanho");
 
         /*sqlite3*/
         void* param = &socket;
@@ -240,16 +240,16 @@ void process_requests(int socket) {
 	sprintf(firstmenu,"Bem vindo, por favor escolha uma das opções abaixo:\n(1)Logar\n(2)Cadastrar filmes\n(3)Editar um filme\n(4)Deletar um filme\n(5)Filtrar\n(6)Listar identificadores\n(7)Sair\n");
 
 	if (send(socket, firstmenu, strlen(firstmenu), 0) == -1)
-                                perror("send");
+                                perror("process_requests requisicao 1");
                         while (choice != 7) {
                                 if ((numbytes=recv(socket, &choice, 2, 0))==-1) {
-                                        perror("recv");
+                                        perror("process_requests resposta 1");
                                         exit(1);
                                 }
                                 choice = ntohs(choice);
                                 if (choice == 1) {
                                         if (send(socket, "Por favor digite seu id de usuario\n", 35, 0) == -1)
-                                                perror("send");
+                                                perror("user_id");
                                 }
                                 else if (choice == 2) {
 					add_movie(socket,db,rc,zErrMsg);
