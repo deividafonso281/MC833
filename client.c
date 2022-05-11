@@ -145,7 +145,7 @@ void listar_ids(int sockfd) {
         } while (total_bytes>0);
 }
 
-int main() {//int argc, char*argv[]) {
+int main(int argc, char*argv[]) {
 
 	short choice;
 	
@@ -155,16 +155,16 @@ int main() {//int argc, char*argv[]) {
 	int rv;
 	char s[INET_ADDRSTRLEN];
 
-	/*if (argc != 2) {
+	if (argc != 2) {
 		fprintf(stderr, "usage: client hostname\n");
 		exit(1);
-	}*/
+	}
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo("davidsantos-VirtualBox"/*argv[1]*/,PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(argv[1],PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
