@@ -18,6 +18,7 @@ void *get_in_addr(struct sockaddr * sa) {
 	return &(((struct sockaddr_in*)sa)->sin_addr);
 }
 
+/* Funcao que solicita ao servidor que realize o login do usuario */
 void logar() {
 
 	int id = -1;
@@ -27,6 +28,7 @@ void logar() {
         printf("Id: %d\n", id);
 }
 
+/* Funcao que solicita ao servidor que cadastre um filme no banco de dados*/
 void cadastrar_filme(int sockfd) {
 
 	int identifier;
@@ -41,11 +43,12 @@ void cadastrar_filme(int sockfd) {
         scanf("%d", &year);
 	printf("Por favor um identificador numerico para o filme que deseja cadastrar ou -1 para atribuir automaticamente.\n");
         scanf("%d", &identifier);
-        sprintf(buf, "%d\n%s\n%s\n%d", identifier, name, genre, year);
+        sprintf(buf, "%d\n%s\n%s\n%d", identifier, name, genre, year); // constroi a mensagem que sera enviada para o servidor
         if (send(sockfd, buf, strlen(buf),0)==-1)
         	perror("cadastrar_filme resposta 1");
 }
 
+/* Funcao que solicita ao servidor que edite um filme do banco de dados */
 void editar_filme(int sockfd) {
 
 	int identifier;
@@ -59,6 +62,7 @@ void editar_filme(int sockfd) {
         	perror("editar_filme resposta 1");
 }
 
+/* Funcao que solicita ao servidor que delete filmes do banco de dados*/
 void deletar_filme(int sockfd) {
 
 	int identifier;
@@ -68,6 +72,7 @@ void deletar_filme(int sockfd) {
         	perror("deletar_filme resposta 1");
 }
 
+/* Funcao que solicita ao servidor que filtre filmes do banco de dados */
 void filtrar_filme(int sockfd) {
 
 	int numbytes;
@@ -81,7 +86,7 @@ void filtrar_filme(int sockfd) {
         if (send(sockfd, &typefilter, 2, 0) == -1)
         	perror("filtrar_filme resposta 1");
         typefilter = ntohs(typefilter);
-        if (typefilter == 2) {
+        if (typefilter == 2) { // filtrar um genero
         	char genre[MAXDATASIZE];
                 if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1,0)) == -1) {
                 	perror("filtrar_filme requisicao 1");
@@ -89,11 +94,11 @@ void filtrar_filme(int sockfd) {
                 }
                 buf[numbytes] = '\0';
                 printf("%s", buf);
-                scanf(" %[^\n]", genre);
+                scanf(" %[^\n]", genre); // recebe um genero do usuario
                 if (send(sockfd, genre, strlen(genre), 0) == -1)
                 	perror("filtrar_filme resposta 2");
         }
-	else if (typefilter == 3) {
+	else if (typefilter == 3) { // filtrar um identificador
         	int identifier;
                 if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1,0))==-1) {
                 	perror("filtrar_filme requisicao 2");
@@ -101,7 +106,7 @@ void filtrar_filme(int sockfd) {
                 }
                 buf[numbytes] = '\0';
                 printf("%s", buf);
-                scanf("%d", &identifier);
+                scanf("%d", &identifier); // recebe um identificador do usuario
                 identifier = htonl(identifier);
                 if (send(sockfd, &identifier, 4, 0)==-1)
                 	perror("filtrar_filme resposta 3");
@@ -111,17 +116,18 @@ void filtrar_filme(int sockfd) {
 		exit(1);
 	}
 	total_bytes = ntohl(total_bytes);
-        do {
+        do { // enquanto nao tiver recebido todos os bytes recebe mais 299
         	if ((numbytes = recv(sockfd, movie, MAXDATASIZE-1,0)) == -1) {
                 	perror("filtrar_filme requisicao 4");
                         exit(1);
                 }
                 movie[numbytes] = '\0';
 		total_bytes -= numbytes;
-                printf("%s", movie);
+                printf("%s", movie); // imprime os bytes recebidos
         } while (total_bytes>0);
 }
 
+/* Funcao que solicita ao servidor os ids e nomes de todos os filmes */
 void listar_ids(int sockfd) {
 
 	int numbytes;
@@ -134,14 +140,14 @@ void listar_ids(int sockfd) {
         }
         total_bytes = ntohl(total_bytes);
 
-        do {
+        do { // enquanto nao tiver recebido total_bytes recebe mais 299
         	if ((numbytes = recv(sockfd, movie, MAXDATASIZE-1,0)) == -1) {
                 	perror("listar_ids resposta 1");
                         exit(1);
                 }
                 movie[numbytes] = '\0';
                 total_bytes -= numbytes;
-                printf("%s", movie);
+                printf("%s", movie); // imprime os bytes recebidos
         } while (total_bytes>0);
 }
 
@@ -207,7 +213,7 @@ int main(int argc, char*argv[]) {
 
 	while (scanf("%hd", &choice) && choice != 7) {
 		choice = htons(choice);
-		if (send(sockfd, &choice, 2, 0)==-1)
+		if (send(sockfd, &choice, 2, 0)==-1) // envia ao servidor escolha do usuario
 			perror("escolha resposta");
 		choice = ntohs(choice);
 
