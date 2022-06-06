@@ -81,6 +81,13 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         char movie[MAXDATASIZE];
 	int total_bytes;
 
+	// Variaveis para verificar se a mensagem foi enviada pelo servidor
+        socklen_t len;
+        struct sockaddr*preply_addr;
+        preply_addr = malloc(p->ai_addrlen);
+        len = p->ai_addrlen;
+        // Variaveis para verificar se a mensagem foi enviada pelo servidor
+
         scanf("%hd", &typefilter);
         typefilter = htons(typefilter);
         if (sendto(sockfd, &typefilter, 2, 0,p->ai_addr,p->ai_addrlen) == -1)
@@ -88,7 +95,10 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         typefilter = ntohs(typefilter);
         if (typefilter == 2) { // filtrar um genero
         	char genre[MAXDATASIZE];
-                if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,p->ai_addr, &p->ai_addrlen)) == -1) {
+		do {
+			numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr, &len);
+		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+                if (numbytes == -1) {
                 	perror("filtrar_filme requisicao 1");
                         exit(1);
                 }
@@ -100,7 +110,10 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         }
 	else if (typefilter == 3) { // filtrar um identificador
         	int identifier;
-                if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,p->ai_addr,&p->ai_addrlen))==-1) {
+		do {
+			numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr,&len);
+		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+                if (numbytes ==-1) {
                 	perror("filtrar_filme requisicao 2");
                         exit(1);
                 }
@@ -111,13 +124,19 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
                 if (sendto(sockfd, &identifier, 4, 0,p->ai_addr,p->ai_addrlen)==-1)
                 	perror("filtrar_filme resposta 3");
         }
-	if ((numbytes=recvfrom(sockfd,&total_bytes,4,0,p->ai_addr,&p->ai_addrlen))==-1) {
+	do {
+		numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+	} while(len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+	if (numbytes ==-1) {
 		perror("filtrar_filme requisicao 3");
 		exit(1);
 	}
 	total_bytes = ntohl(total_bytes);
         do { // enquanto nao tiver recebido todos os bytes recebe mais 299
-        	if ((numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,p->ai_addr,&p->ai_addrlen)) == -1) {
+		do {
+			numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr,&len);
+		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+        	if (numbytes == -1) {
                 	perror("filtrar_filme requisicao 4");
                         exit(1);
                 }
@@ -133,15 +152,28 @@ void listar_ids(int sockfd, struct addrinfo * p) {
 	int numbytes;
 	char movie[MAXDATASIZE];
 	int total_bytes;
+	
+	// Variaveis para verificar se a mensagem foi enviada pelo servidor
+	socklen_t len;
+	struct sockaddr*preply_addr;
+	preply_addr = malloc(p->ai_addrlen);
+	len = p->ai_addrlen;
+	// Variaveis para verificar se a mensagem foi enviada pelo servidor
 
-	if ((numbytes=recvfrom(sockfd,&total_bytes,4,0,p->ai_addr,&p->ai_addrlen))==-1) {
+	do {
+		numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+	if (numbytes == -1) {
                 perror("listar_ids requisicao 1");
                 exit(1);
         }
         total_bytes = ntohl(total_bytes);
 
         do { // enquanto nao tiver recebido total_bytes recebe mais 299
-        	if ((numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,p->ai_addr, &p->ai_addrlen)) == -1) {
+        	do {
+			numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr, &len);
+		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+		if (numbytes == -1) {
                 	perror("listar_ids resposta 1");
                         exit(1);
                 }
@@ -175,6 +207,7 @@ int main(int argc, char*argv[]) {
 		return 1;
 	}
 
+
 	for (p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
 			perror("client: socket");
@@ -190,6 +223,13 @@ int main(int argc, char*argv[]) {
 		return 2;
 	}
 
+	// Variaveis para verificar se a mensagem foi enviada pelo servidor
+        socklen_t len;
+        struct sockaddr*preply_addr;
+        len = p->ai_addrlen;
+	preply_addr = malloc(len);
+        // Variaveis para verificar se a mensagem foi enviada pelo servidor
+
 	choice = htons(choice);
 	if ((numbytes = sendto(sockfd, &choice, 2, 0,p->ai_addr, p->ai_addrlen))== -1) {
 		perror("talker: sendto");
@@ -199,7 +239,10 @@ int main(int argc, char*argv[]) {
 	freeaddrinfo(servinfo);
 
 	/*Menu inicial*/
-	if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, p->ai_addr, &p->ai_addrlen))==-1) {
+	do {
+		numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
+	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+	if (numbytes ==-1) {
 		perror("Menu inicial resposta");
 		exit(1);
 	}
@@ -216,7 +259,10 @@ int main(int argc, char*argv[]) {
 
 		/*Instrucoes*/
 		if (choice != 6) {	
-			if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, p->ai_addr, &p->ai_addrlen))==-1) {
+			do {
+				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
+			} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+			if (numbytes ==-1) {
 				perror("segunda instrucao requisicao");
 				exit(1);		
 			}
