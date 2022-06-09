@@ -8,11 +8,14 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <poll.h>
 
 #include <string.h>
 
 #define PORT "5151"
 #define MAXDATASIZE 300
+
+#define TIMEOUT 500
 
 void *get_in_addr(struct sockaddr * sa) {
 	return &(((struct sockaddr_in*)sa)->sin_addr);
@@ -87,6 +90,14 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         preply_addr = malloc(p->ai_addrlen);
         len = p->ai_addrlen;
         // Variaveis para verificar se a mensagem foi enviada pelo servidor
+	
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = sockfd;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
 
         scanf("%hd", &typefilter);
         typefilter = htons(typefilter);
@@ -96,12 +107,20 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         if (typefilter == 2) { // filtrar um genero
         	char genre[MAXDATASIZE];
 		do {
-			numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr, &len);
+			n_events = poll(pfds,fd_count,TIMEOUT);
+                        if (n_events==0) {
+                                printf("Dificuldade em conectar com o servidor\n");
+                        	return;
+                        }
+                        else {
+				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr, &len);
+				if (numbytes == -1) {
+                        		perror("filtrar_filme requisicao 1");
+                        		exit(1);
+                		}       
+                        }
+
 		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-                if (numbytes == -1) {
-                	perror("filtrar_filme requisicao 1");
-                        exit(1);
-                }
                 buf[numbytes] = '\0';
                 printf("%s", buf);
                 scanf(" %[^\n]", genre); // recebe um genero do usuario
@@ -111,12 +130,19 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
 	else if (typefilter == 3) { // filtrar um identificador
         	int identifier;
 		do {
-			numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr,&len);
+			n_events = poll(pfds,fd_count,TIMEOUT);
+                        if (n_events==0) {
+                                printf("Dificuldade em conectar com o servidor\n");
+                        	return;
+                        }
+                        else {
+				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr,&len);
+				if (numbytes ==-1) {
+                        		perror("filtrar_filme requisicao 2");
+                        		exit(1);
+                		}
+                        }
 		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-                if (numbytes ==-1) {
-                	perror("filtrar_filme requisicao 2");
-                        exit(1);
-                }
                 buf[numbytes] = '\0';
                 printf("%s", buf);
                 scanf("%d", &identifier); // recebe um identificador do usuario
@@ -124,22 +150,37 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
                 if (sendto(sockfd, &identifier, 4, 0,p->ai_addr,p->ai_addrlen)==-1)
                 	perror("filtrar_filme resposta 3");
         }
+
 	do {
-		numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+		n_events = poll(pfds,fd_count,TIMEOUT);
+                if (n_events==0) {
+                	printf("Dificuldade em conectar com o servidor\n");
+                	return;
+                }
+                else {
+			numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+			if (numbytes ==-1) {
+                	perror("filtrar_filme requisicao 3");
+                	exit(1);
+        		}
+                }
 	} while(len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-	if (numbytes ==-1) {
-		perror("filtrar_filme requisicao 3");
-		exit(1);
-	}
 	total_bytes = ntohl(total_bytes);
         do { // enquanto nao tiver recebido todos os bytes recebe mais 299
 		do {
-			numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr,&len);
+			n_events = poll(pfds,fd_count,TIMEOUT);
+                        if (n_events==0) {
+                                printf("Dificuldade em conectar com o servidor\n");
+                        	return;
+                        }
+                        else {
+				numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr,&len);
+				if (numbytes == -1) {
+                        		perror("filtrar_filme requisicao 4");
+                        		exit(1);
+                		}
+                        }
 		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-        	if (numbytes == -1) {
-                	perror("filtrar_filme requisicao 4");
-                        exit(1);
-                }
                 movie[numbytes] = '\0';
 		total_bytes -= numbytes;
                 printf("%s", movie); // imprime os bytes recebidos
@@ -159,24 +200,46 @@ void listar_ids(int sockfd, struct addrinfo * p) {
 	preply_addr = malloc(p->ai_addrlen);
 	len = p->ai_addrlen;
 	// Variaveis para verificar se a mensagem foi enviada pelo servidor
+	
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = sockfd;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
 
 	do {
-		numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+		n_events = poll(pfds,fd_count,TIMEOUT);
+                if (n_events==0) {
+                	printf("Dificuldade em conectar com o servidor\n");
+                	return;
+                }
+                else {
+			numbytes=recvfrom(sockfd,&total_bytes,4,0,preply_addr,&len);
+			if (numbytes == -1) {
+                		perror("listar_ids requisicao 1");
+                		exit(1);
+        		}
+                }
 	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-	if (numbytes == -1) {
-                perror("listar_ids requisicao 1");
-                exit(1);
-        }
         total_bytes = ntohl(total_bytes);
 
         do { // enquanto nao tiver recebido total_bytes recebe mais 299
         	do {
-			numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr, &len);
+			n_events = poll(pfds,fd_count,TIMEOUT);
+                        if (n_events==0) {
+                        	printf("Dificuldade em conectar com o servidor\n");
+                        	return;
+                        }
+                        else {
+				numbytes = recvfrom(sockfd, movie, MAXDATASIZE-1,0,preply_addr, &len);
+				if (numbytes == -1) {
+                        		perror("listar_ids resposta 1");
+                        		exit(1);
+                		}
+                        }
 		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-		if (numbytes == -1) {
-                	perror("listar_ids resposta 1");
-                        exit(1);
-                }
                 movie[numbytes] = '\0';
                 total_bytes -= numbytes;
                 printf("%s", movie); // imprime os bytes recebidos
@@ -223,29 +286,47 @@ int main(int argc, char*argv[]) {
 		return 2;
 	}
 
+	freeaddrinfo(servinfo);
+
 	// Variaveis para verificar se a mensagem foi enviada pelo servidor
         socklen_t len;
         struct sockaddr*preply_addr;
         len = p->ai_addrlen;
 	preply_addr = malloc(len);
         // Variaveis para verificar se a mensagem foi enviada pelo servidor
+	//
+	// Variaveis para usar no time out
+	int fd_count = 1;
+	struct pollfd *pfds = malloc(sizeof *pfds);
+	pfds[0].fd = sockfd;
+	pfds[0].events = POLLIN;
+	int n_events;
+	// Variaveis para usar no time out
 
 	choice = htons(choice);
-	if ((numbytes = sendto(sockfd, &choice, 2, 0,p->ai_addr, p->ai_addrlen))== -1) {
-		perror("talker: sendto");
-		exit(1);
-	}
 	
-	freeaddrinfo(servinfo);
-
-	/*Menu inicial*/
 	do {
-		numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
-	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-	if (numbytes ==-1) {
-		perror("Menu inicial resposta");
-		exit(1);
-	}
+		if ((numbytes = sendto(sockfd, &choice, 2, 0,p->ai_addr, p->ai_addrlen))== -1) {
+			perror("talker: sendto");
+			exit(1);
+		}
+
+		/*Menu inicial*/
+		do {
+			n_events = poll(pfds,fd_count,TIMEOUT);
+			if (n_events==0) {
+				printf("Dificuldade em conectar com o servidor, por favor espere um pouco\n");
+				break;
+			}
+			else {
+				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
+				if (numbytes ==-1) {
+                		        perror("Menu inicial resposta");
+                		        exit(1);
+                		}
+			}
+		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
+	}while (n_events==0);
 
 	buf[numbytes] = '\0';
 
@@ -258,14 +339,21 @@ int main(int argc, char*argv[]) {
 		choice = ntohs(choice);
 
 		/*Instrucoes*/
-		if (choice != 6) {	
-			do {
-				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
-			} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-			if (numbytes ==-1) {
-				perror("segunda instrucao requisicao");
-				exit(1);		
-			}
+		if (choice != 6) {
+                	do {
+                	        n_events = poll(pfds,fd_count,TIMEOUT);
+                       		if (n_events==0) {
+                                	printf("Dificuldade em conectar com o servidor\n");
+                        		break;
+				}
+                        	else {
+					numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
+					if (numbytes ==-1) {
+						perror("segunda instrucao requisicao");
+						exit(1);
+					}
+                        	}
+                	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
 			buf[numbytes] = '\0';
 			printf("%s", buf);
 		}

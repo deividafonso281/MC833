@@ -10,12 +10,15 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <poll.h>
 
 #include "sqlite3.h"
 
 #define PORT "5151"
 
 #define BACKLOG 5
+
+#define TIMEOUT 500
 
 
 /* Estrutura para armazenar os parametros que serao usados no sqlite3_exec para enviar mensagens para o cliente*/
@@ -99,12 +102,29 @@ void add_movie(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockaddr_st
         char queryfilter[300];
         char buffer[300];
         int numbytes;
+
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = socket;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
+
         if ((numbytes = sendto(socket, "Por favor digite o nome do filme que deseja cadastrar\n", 54, 0,(struct sockaddr *)&their_addr, addr_len)) == -1)
         	perror("add_movie requisicao 1");
-        if ((numbytes=recvfrom(socket,buffer,299,0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
-        	perror("add_movie resposta 1");
-                exit(1);
+
+	n_events = poll(pfds,fd_count,TIMEOUT);
+        if (n_events==0) {
+        	printf("Dificuldade em conectar com o cliente\n");
+                        return;
         }
+	else {
+        	if ((numbytes=recvfrom(socket,buffer,299,0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
+        		perror("add_movie resposta 1");
+               		exit(1);
+        	}
+	}
         buffer[numbytes] = '\0';
         sscanf(buffer, "%d %[^\n] %[^\n]%d", &identifier, name, genre, &year); // extrai os valores dos campos do filme que sera adicionado da mensagem do cliente
         if (identifier==-1) { // constroi a query que adiciona o filme
@@ -128,12 +148,29 @@ void edit_movie(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockaddr_s
         char queryfilter[300];
         int numbytes;
         char buffer[300];
+
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = socket;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
+
         if ((numbytes = sendto(socket, "Por favor digite o ideintificador do filme que deseja editar\n", 61, 0,(struct sockaddr *)&their_addr, addr_len)) == -1)
         	perror("edit_movie requisicao 1");
-        if ((numbytes=recvfrom(socket, buffer, 299, 0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
-        	perror("edit_movie resposta 1");
-                exit(1);
+
+	n_events = poll(pfds,fd_count,TIMEOUT);
+        if (n_events==0) {
+                printf("Dificuldade em conectar com o cliente\n");
+                        return;
         }
+        else {
+        	if ((numbytes=recvfrom(socket, buffer, 299, 0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
+        		perror("edit_movie resposta 1");
+                	exit(1);
+        	}
+	}
         buffer[numbytes] ='\0';
         sscanf(buffer,"%d %[^\n]", &identifier, new_genre); // extrai os campos do filme que sera editado da mensagem do cliente
         sprintf(queryfilter, "SELECT Id, Genre FROM Movies WHERE Id = %d;", identifier); // constroi a query que encontra o filme no banco de dados
@@ -152,12 +189,29 @@ void delete_movie(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockaddr
 	int identifier;
         char queryfilter[300];
         int numbytes;
+
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = socket;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
+
         if ((numbytes = sendto(socket, "Por favor digite o identificador do filme que deseja deletar\n", 62, 0, (struct sockaddr *)&their_addr, addr_len)) == -1)
         	perror("delete_movie requisicao 1");
-        if ((numbytes=recvfrom(socket, &identifier, 4, 0, (struct sockaddr *)&their_addr, &addr_len))==-1) {
-        	perror("delete_movie resposta 1");
-                exit(1);
+
+	n_events = poll(pfds,fd_count,TIMEOUT);
+        if (n_events==0) {
+                printf("Dificuldade em conectar com o cliente\n");
+                        return;
         }
+        else {
+        	if ((numbytes=recvfrom(socket, &identifier, 4, 0, (struct sockaddr *)&their_addr, &addr_len))==-1) {
+        		perror("delete_movie resposta 1");
+                	exit(1);
+        	}
+	}
         identifier = ntohl(identifier);
         sprintf(queryfilter, "DELETE FROM Movies WHERE Id = %d;", identifier); // constroi a query de deletar o filme
 
@@ -175,6 +229,14 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockadd
 	int total_bytes = 28;
 	void* addrs_total_bytes = (void*) &total_bytes;
 
+	// Variaveis para usar no time out
+        int fd_count = 1;
+        struct pollfd *pfds = malloc(sizeof *pfds);
+        pfds[0].fd = socket;
+        pfds[0].events = POLLIN;
+        int n_events;
+        // Variaveis para usar no time out
+
 	params* par = malloc(sizeof(params));
 	par->socket = socket;
 	par->their_addr = their_addr;
@@ -182,10 +244,19 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockadd
 
         if ((numbytes = sendto(socket, "Por favor selecione um dos filtros abaixo:\n(1)Todos os filmes\n(2)Filtrar por genero\n(3)Filtrar por identificador\n", 113, 0,(struct sockaddr *)&their_addr, addr_len)) == -1)
         	perror("filte_movies requisicao 1");
-        if ((numbytes=recvfrom(socket, &typefilter, 2, 0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
-        	perror("filter_movies resposta 1");
-                exit(1);
+
+	n_events = poll(pfds,fd_count,TIMEOUT);
+        if (n_events==0) {
+                printf("Dificuldade em conectar com o cliente\n");
+                        return;
         }
+        else {
+        	if ((numbytes=recvfrom(socket, &typefilter, 2, 0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
+        		perror("filter_movies resposta 1");
+                	exit(1);
+        	}
+	}
+
         typefilter = ntohs(typefilter);
         if (typefilter == 1) // usuario quer filtrar todos os filmes
         	sprintf(queryfilter, "SELECT * FROM Movies;"); // constroi query que filtra todos os filmes
@@ -193,10 +264,19 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockadd
         	char genre[100];
                 if ((numbytes = sendto(socket, "Por favor selecione um genero para filtrar:\n",44,0,(struct sockaddr *)&their_addr, addr_len))==-1)
                 	perror("filter_movies requisicao 2");
-                if ((numbytes=recvfrom(socket, genre,99,0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
-                	perror("filter_movies resposta 2");
-                        exit(1);
-                }
+
+		n_events = poll(pfds,fd_count,TIMEOUT);
+        	if (n_events==0) {
+                	printf("Dificuldade em conectar com o cliente\n");
+                	        return;
+        	}
+        	else {
+                	if ((numbytes=recvfrom(socket, genre,99,0,(struct sockaddr *)&their_addr, &addr_len))==-1) {
+                		perror("filter_movies resposta 2");
+                	        exit(1);
+                	}
+		}
+
                 genre[numbytes] = '\0';
                 sprintf(queryfilter, "SELECT * FROM Movies WHERE Genre LIKE \'%%%s%%\';", genre); // constroi query que filtra genero
         }
@@ -204,10 +284,18 @@ void filter_movies(int socket, sqlite3* db, int rc, char *zErrMsg,struct sockadd
         	int identifier;
                 if ((numbytes = sendto(socket, "Por favor selecione um identificador para filtrar:\n", 51, 0, (struct sockaddr *)&their_addr, addr_len))==-1)
                 	perror("filter_movies requisicao 3");
-                if ((numbytes=recvfrom(socket,&identifier,4,0, (struct sockaddr *)&their_addr, &addr_len))==-1) {
-                	perror("filter_movies requisicao 3");
-                        exit(1);
-                }
+
+		n_events = poll(pfds,fd_count,TIMEOUT);
+        	if (n_events==0) {
+                	printf("Dificuldade em conectar com o cliente\n");
+               	        return;
+        	}
+        	else {
+                	if ((numbytes=recvfrom(socket,&identifier,4,0, (struct sockaddr *)&their_addr, &addr_len))==-1) {
+                		perror("filter_movies requisicao 3");
+                	        exit(1);
+                	}
+		}
                 identifier = ntohl(identifier);
                 sprintf(queryfilter, "SELECT * FROM Movies WHERE Id = \"%d\";", identifier); // constroi a query que filtra um identificador
         }
