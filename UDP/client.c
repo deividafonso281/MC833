@@ -13,7 +13,7 @@
 #include <string.h>
 
 #define PORT "5151"
-#define MAXDATASIZE 300
+#define MAXDATASIZE 450
 
 #define TIMEOUT 500
 
@@ -25,6 +25,7 @@ void *get_in_addr(struct sockaddr * sa) {
 void logar() {
 
 	int id = -1;
+	printf("Por favor digite seu id de usuario\n");
         while (scanf("%d",&id) && id<0) {
         	printf("Id invalido\n");
         }
@@ -32,54 +33,61 @@ void logar() {
 }
 
 /* Funcao que solicita ao servidor que cadastre um filme no banco de dados*/
-void cadastrar_filme(int sockfd, struct addrinfo * p) {
+void cadastrar_filme(short choice, int sockfd, struct addrinfo * p) {
 
 	int identifier;
         char name[100];
         char genre[100];
+	char director[100];
 	char buf[MAXDATASIZE];
         int year;
+	printf("Por favor digite o nome do filme que deseja cadastrar\n");
         scanf(" %[^\n]", name);
         printf("Por favor digite o genero do filme que deseja cadastrar:\n");
         scanf(" %[^\n]", genre);
+	printf("Por favor digite o nome do diretor do filme que deseja cadastrar:\n");
+	scanf(" %[^\n]", director);
         printf("Por favor digite o ano do filme que deseja cadastrar:\n");
         scanf("%d", &year);
 	printf("Por favor um identificador numerico para o filme que deseja cadastrar ou -1 para atribuir automaticamente.\n");
         scanf("%d", &identifier);
-        sprintf(buf, "%d\n%s\n%s\n%d", identifier, name, genre, year); // constroi a mensagem que sera enviada para o servidor
+        sprintf(buf, "%hd\n%d\n%s\n%s\n%s\n%d", choice, identifier, name, genre, director, year); // constroi a mensagem que sera enviada para o servidor
         if (sendto(sockfd, buf, strlen(buf),0,p->ai_addr,p->ai_addrlen)==-1)
         	perror("cadastrar_filme resposta 1");
 }
 
 /* Funcao que solicita ao servidor que edite um filme do banco de dados */
-void editar_filme(int sockfd, struct addrinfo * p) {
+void editar_filme(short choice, int sockfd, struct addrinfo * p) {
 
 	int identifier;
         char genre[100];
 	char buf[MAXDATASIZE];
+	printf("Por favor digite o identificador do filme que deseja editar\n");
         scanf("%d", &identifier);
         printf("Por favor digite o genero que deseja acrescentar ao filme %d:\n", identifier);
         scanf(" %[^\n]", genre);
-        sprintf(buf,"%d\n%s", identifier, genre);
+        sprintf(buf,"%hd\n%d\n%s", choice, identifier, genre);
         if (sendto(sockfd,buf,strlen(buf),0,p->ai_addr,p->ai_addrlen)==-1)
         	perror("editar_filme resposta 1");
 }
 
 /* Funcao que solicita ao servidor que delete filmes do banco de dados*/
-void deletar_filme(int sockfd, struct addrinfo * p) {
+void deletar_filme(short choice, int sockfd, struct addrinfo * p) {
 
 	int identifier;
+	char buf[MAXDATASIZE];
+	printf("Por favor digite o identificador do filme que deseja deletar\n");
         scanf("%d", &identifier);
-        identifier = htonl(identifier);
-        if (sendto(sockfd,&identifier,4,0,p->ai_addr,p->ai_addrlen)==-1)
+        sprintf(buf,"%hd\n%d", choice, identifier);
+        if (sendto(sockfd,buf,strlen(buf),0,p->ai_addr,p->ai_addrlen)==-1)
         	perror("deletar_filme resposta 1");
 }
 
 /* Funcao que solicita ao servidor que filtre filmes do banco de dados */
-void filtrar_filme(int sockfd, struct addrinfo * p) {
+void filtrar_filme(short choice, int sockfd, struct addrinfo * p) {
 
 	int numbytes;
-	char buf[MAXDATASIZE];
+	char buf[MAXDATASIZE+3];
 	short typefilter;
         char movie[MAXDATASIZE];
 	int total_bytes;
@@ -99,59 +107,28 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
         int n_events;
         // Variaveis para usar no time out
 
+	printf("Por favor selecione um dos filtros abaixo:\n(1)Todos os filmes\n(2)Filtrar por genero\n(3)Filtrar por identificador\n");
         scanf("%hd", &typefilter);
-        typefilter = htons(typefilter);
-        if (sendto(sockfd, &typefilter, 2, 0,p->ai_addr,p->ai_addrlen) == -1)
-        	perror("filtrar_filme resposta 1");
-        typefilter = ntohs(typefilter);
-        if (typefilter == 2) { // filtrar um genero
-        	char genre[MAXDATASIZE];
-		do {
-			n_events = poll(pfds,fd_count,TIMEOUT);
-                        if (n_events==0) {
-                                printf("Dificuldade em conectar com o servidor\n");
-                        	return;
-                        }
-                        else {
-				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr, &len);
-				if (numbytes == -1) {
-                        		perror("filtrar_filme requisicao 1");
-                        		exit(1);
-                		}       
-                        }
-
-		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-                buf[numbytes] = '\0';
-                printf("%s", buf);
+	if (typefilter == 1) {
+		sprintf(buf,"%hd\n%hd",choice, typefilter);
+	}
+	else if (typefilter == 2) { // filtrar um genero
+		printf("Por favor selecione um genero para filtrar:\n");
+        	char genre[100];
                 scanf(" %[^\n]", genre); // recebe um genero do usuario
-                if (sendto(sockfd, genre, strlen(genre), 0,p->ai_addr,p->ai_addrlen) == -1)
-                	perror("filtrar_filme resposta 2");
+		sprintf(buf,"%hd\n%hd\n%s",choice, typefilter,genre);
         }
 	else if (typefilter == 3) { // filtrar um identificador
+		printf("Por favor selecione um identificador para filtrar:\n");
         	int identifier;
-		do {
-			n_events = poll(pfds,fd_count,TIMEOUT);
-                        if (n_events==0) {
-                                printf("Dificuldade em conectar com o servidor\n");
-                        	return;
-                        }
-                        else {
-				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1,0,preply_addr,&len);
-				if (numbytes ==-1) {
-                        		perror("filtrar_filme requisicao 2");
-                        		exit(1);
-                		}
-                        }
-		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-                buf[numbytes] = '\0';
-                printf("%s", buf);
                 scanf("%d", &identifier); // recebe um identificador do usuario
-                identifier = htonl(identifier);
-                if (sendto(sockfd, &identifier, 4, 0,p->ai_addr,p->ai_addrlen)==-1)
-                	perror("filtrar_filme resposta 3");
+		sprintf(buf,"%hd\n%hd\n%d",choice,typefilter,identifier);
         }
 
-	do {
+	if (sendto(sockfd,buf,strlen(buf),0,p->ai_addr,p->ai_addrlen)==-1)
+                perror("filtrar_filme query");
+
+	do { // recebe o numero de bytes do servidor
 		n_events = poll(pfds,fd_count,TIMEOUT);
                 if (n_events==0) {
                 	printf("Dificuldade em conectar com o servidor\n");
@@ -188,11 +165,12 @@ void filtrar_filme(int sockfd, struct addrinfo * p) {
 }
 
 /* Funcao que solicita ao servidor os ids e nomes de todos os filmes */
-void listar_ids(int sockfd, struct addrinfo * p) {
+void listar_ids(short choice, int sockfd, struct addrinfo * p) {
 
 	int numbytes;
 	char movie[MAXDATASIZE];
 	int total_bytes;
+	char buf[MAXDATASIZE];
 	
 	// Variaveis para verificar se a mensagem foi enviada pelo servidor
 	socklen_t len;
@@ -209,6 +187,9 @@ void listar_ids(int sockfd, struct addrinfo * p) {
         int n_events;
         // Variaveis para usar no time out
 
+	sprintf(buf,"%hd", choice);
+	if (sendto(sockfd,buf,strlen(buf),0,p->ai_addr,p->ai_addrlen)==-1)
+                perror("listar ids");
 	do {
 		n_events = poll(pfds,fd_count,TIMEOUT);
                 if (n_events==0) {
@@ -303,78 +284,28 @@ int main(int argc, char*argv[]) {
 	int n_events;
 	// Variaveis para usar no time out
 
-	choice = htons(choice);
-	
-	do {
-		if ((numbytes = sendto(sockfd, &choice, 2, 0,p->ai_addr, p->ai_addrlen))== -1) {
-			perror("talker: sendto");
-			exit(1);
-		}
-
-		/*Menu inicial*/
-		do {
-			n_events = poll(pfds,fd_count,TIMEOUT);
-			if (n_events==0) {
-				printf("Dificuldade em conectar com o servidor, por favor espere um pouco\n");
-				break;
-			}
-			else {
-				numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
-				if (numbytes ==-1) {
-                		        perror("Menu inicial resposta");
-                		        exit(1);
-                		}
-			}
-		} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-	}while (n_events==0);
-
-	buf[numbytes] = '\0';
-
-	printf("%s", buf);
+	/*Menu inicial*/
+	printf("Bem vindo, por favor escolha uma das opções abaixo:\n(1)Logar\n(2)Cadastrar filmes\n(3)Editar um filme\n(4)Deletar um filme\n(5)Filtrar\n(6)Listar identificadores\n(7)Sair\n");
 
 	while (scanf("%hd", &choice) && choice != 7) {
-		choice = htons(choice);
-		if ((numbytes = sendto(sockfd, &choice, 2, 0,p->ai_addr, p->ai_addrlen))== -1)  // envia ao servidor escolha do usuario
-			perror("escolha resposta");
-		choice = ntohs(choice);
-
-		/*Instrucoes*/
-		if (choice != 6) {
-                	do {
-                	        n_events = poll(pfds,fd_count,TIMEOUT);
-                       		if (n_events==0) {
-                                	printf("Dificuldade em conectar com o servidor\n");
-                        		break;
-				}
-                        	else {
-					numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1, 0, preply_addr, &len);
-					if (numbytes ==-1) {
-						perror("segunda instrucao requisicao");
-						exit(1);
-					}
-                        	}
-                	} while (len != p->ai_addrlen || memcmp(p->ai_addr,preply_addr,len)!=0);
-			buf[numbytes] = '\0';
-			printf("%s", buf);
-		}
 
 		if (choice == 1) {
 			logar();
                 }
                 else if (choice == 2) {
-			cadastrar_filme(sockfd,p);
+			cadastrar_filme(choice,sockfd,p);
                 }
                 else if (choice == 3) {
-                        editar_filme(sockfd,p);
+                        editar_filme(choice,sockfd,p);
                 }
                 else if (choice == 4) {
-			deletar_filme(sockfd,p);
+			deletar_filme(choice,sockfd,p);
                 }
 		else if (choice == 5) {
-			filtrar_filme(sockfd,p);
+			filtrar_filme(choice,sockfd,p);
                 }
                 else if (choice == 6) {
-			listar_ids(sockfd,p);
+			listar_ids(choice,sockfd,p);
                 }
 		printf("Por favor, selecione uma nova opcao:\n");
 	}
